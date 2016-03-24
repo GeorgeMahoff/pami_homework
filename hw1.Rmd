@@ -1,0 +1,151 @@
+---
+title: "PAMI homework 1: Linear Regression"
+author: "Egor Makhov 10493074"
+output: pdf_document
+---
+
+Welcome to the first PAMI demo/homework (year 2016): linear regression
+
+Today we will work on the 'x20' dataset about population and drinking data.
+The dataset has been downloaded from John Burkardt website:
+http://people.sc.fsu.edu/~jburkardt/datasets/regression/regression.html
+and contains data about the population of different states, their drinking
+habits, and their death rate from cirrhosis.
+
+You can find more info here:
+http://people.sc.fsu.edu/~jburkardt/datasets/regression/x20.txt
+
+```{r}
+library(leaps)
+rm(list=ls())
+```
+
+Let us now load the dataset and inspect its contents...
+
+```{r}
+# load the dataset
+data = read.table("cirrhosis.data",header = TRUE)
+attach(data)
+```
+
+* urbanpop: urban population (percentage)
+* latebirths: late births (reciprocal * 100)
+* wine: wine consumption per capita
+* liquor: liquor consumption per capita
+* deathrate: cirrhosis death rate
+
+We will now try to fit different linear regression models and estimate
+the \"deathrate\" response variable from the data.
+
+----
+
+First of all, let us give a glance at the dataset as a whole: below
+you can see the correlations between all pairs of variables, while
+the picture contains the plots of these pairs.
+
+```{r}
+pairs(data)
+cor(data)
+```
+
+**Q1: what can you deduce from the plots and the correlations?**
+
+1. Every variable in out dataset is *quantitative*.
+2. Data in not very noisy, so the accurancy should be ok.
+3. Relationship between pairs of variables looks pretty linear.
+4. Intercept of our linear regression will be low and slope will be positive.
+4. There is a causal connection between every pair of variables.
+5. Most variables are good correlated, that means that we can use them for our prediction purposes (especially deathrate~wine and urbanpop~latebirths). 
+
+---
+
+Now let us look at the results of simple linear regression, trying to
+describe deathrate as a function of urbanpop:
+```{r}
+fit = lm(deathrate ~ urbanpop)
+summary(fit)
+Yhat = fitted(fit)
+plot(urbanpop,deathrate)
+abline(fit, col="green")
+segments(urbanpop,Yhat,urbanpop,deathrate,col="blue")
+```
+
+**Q2: what can you deduce from this result? How statistically significant is it? Is this enough to say that there is a causation relationship between the two variables (i.e. that living in the city increases the probability of dying from cirrhosis)?**
+
+Let's take a look at t-statistic and p-value of our variables: 
+* For _Intercept_ p-value is very high so we can say that intercept isn't very significant.
+* For _urbanpop_ p-value is very low (we can reject null hypothesis) and t-statistic is quite huge so we can say that urbanpop is statisticlially significant in that situation.
+
+R-squared is 0.5611, that means that we explainet most of our variance wich nice. But we need to complare it with results from other models.
+
+We can say that there is a causation relationship between deathrate and urbanpop, because of coefficients (t-statistic and p-value) and the logic of this relationship looke fine. 
+
+---
+
+**Q3: Now, try to do the same for all the other variables: complete the source code of this demo to include simple linear regressions for latebirths, wine, and liquor, and comment the results.**
+
+```{r}
+fit_w = lm(deathrate ~ wine)
+summary(fit_w)
+fit_l = lm(deathrate ~ liquor)
+summary(fit_l)
+fit_lb = lm(deathrate ~ latebirths)
+summary(fit_lb)
+```
+
+In this model intercept affect the data much more than from the first one.
+
+Every varible is statistically significant (in case of simple linear regression).
+
+According to R-squared: model deathrate~wine is better than the others.
+
+According to t-statistic: variable wine looks more relevant (t-statistic = 10.47) than the others in case of predicting deathrate.
+
+---
+
+Let us now look at the results we get from multiple linear regression. Include the
+code to perform multiple linear regression using all of the variables, and comment about
+the results you get.
+```{r}
+fit_m = lm(deathrate ~ urbanpop + latebirths + wine + liquor)
+summary(fit_m)
+
+regfit = regsubsets(deathrate ~ urbanpop + latebirths + wine + liquor, data=data, nvmax=2)
+summary(regfit)
+```
+
+**Q4: do all the variables still look relevant for describing deathrate? If not, which ones are the best? Try guessing first, then use the \"regsubsets\" command to actually find which are the best ones if you only could choose two of them.**
+
+Relevance of our variables changed, so, according to p-value, _Wine_ variable is the most relevant for predicting task, others are not significant.
+
+Let's create some sort of rating of relevance according to the t-statistic:
+wine(4.63) > latebirths(1.97) > urbanpop(0.403) > liquor(0.36)
+So we can assume that _wine_ and _latebirths_ will be best for multiple regression with 2 features.
+
+And that is correct (according to the regsubsets(...) results).
+
+---
+
+Finally, let us see if there are any interactions amongst these two variables.
+
+**Q5: Try first a linear regression (fit1) using them, then another one (fit2) adding the interaction, finally compare the two fits and comment on the results.**
+```{r}
+fit1 = lm(deathrate ~ wine + latebirths)
+fit2 = lm(deathrate ~ wine + latebirths + wine:latebirths)
+summary(fit1)
+summary(fit2)
+anova(fit1, fit2)
+```
+
+Before comparing fit1 and fit2 we can notice intresting fact that R-squared of fit1 (0.8128) is little bit worser than from fit from all variables (0.8136), but if we take a look at adjucted R-squared we can say that fit1 is better than fit from all vars (0.8041>0.7954). That is logical because we should choose easier models(less features) for our predictions to prevent high difficulty of calculation and explanation of results.
+
+According to the cefficients calculated in fit2:
+Adding interaction between variables made sense (not very big but anyway), so the quality of our model increased (adj R-squared = 0.8179) so it is our best model in this demo.
+
+Analysis of Variance also shown as that interaction of wine and latebirths is quite significant (according to F-statistic and p-value).
+
+---
+
+```{r}
+detach(data)
+```
